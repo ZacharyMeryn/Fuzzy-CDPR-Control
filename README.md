@@ -4,6 +4,6 @@ This is gonna serve as the hub for all the code we're using this semester and ma
 
 CURRENT ACTION ITEMS:
 1. Get physical values for parts, seen in the BEFORE RUNNING ANYTHING section, just fill in the constants
-2. get professor checks on PID gains, cable compliance bandwidth, velocity and acceleration limits
+2. get professor checks on PID gains, cable compliance bandwidth, velocity and acceleration limits - SET MEETINGS FOR THIS
 3. ensure no function is called before its defined
 4. start thinking about low gravity conditions, how to get a purely online simulation
