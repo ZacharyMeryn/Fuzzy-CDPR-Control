@@ -4,14 +4,15 @@ This is gonna serve as the hub for all the code we're using this semester and ma
 
 CURRENT CODE ACTION ITEMS:
 1. Get physical values for parts, seen in the BEFORE RUNNING ANYTHING section, just fill in the constants
-2. get professor checks on PID gains, cable compliance bandwidth, velocity and acceleration limits - SET MEETINGS FOR THIS
+2. get professor checks on PID gains, cable compliance bandwidth, velocity and acceleration limits
 3. ensure no function is called before its defined
-4. start thinking about low gravity conditions, how to get a purely online simulation
+4. actually try running the online-only simulation
+5. check w ponce about part ordering
 
 OTHER THINGS TO WORK ON GENERALLY:
-1. Lets meet with the mentor again we havent seen her in months
+1. Prep for next mentor meeting
 2. Thangalesu briefing (data base here https://sites.google.com/a/usc.edu/aste527/)
 3. more connections we can always use more POVs
 4. Let's draft sample questions for each person / type (People, Tech, Economics)
-5. Continue to refine Vertical Research Paper
-6. Begin draft for Space Force Assosciation (email from ponce 3/25)
+5. Begin draft for Space Force Assosciation (email from ponce 3/25)
+6. Find conferences and other events to attend
