@@ -8,30 +8,12 @@
 % (calipers my g), P.cable_mass_per_m (given by manufacturer ideally),
 % P.cable_stiffness (listed on spec sheet as axial stiffness), and P.T_min
 % and P.T_max, those depend on the winch motors rated torque and my chosen
-% cables breaking strength. lowk consult anupam or someone on this bit
+% cables breaking strength. lowk consult someone on this bit
 %
-% General notes:
-%   1. [DONE] Cable compliance filter added in run_simulation — see
-%      "Cable Compliance Spring-Damper" block in Section 7.
-%      Each cable now has a first-order lag: commanded length drives tension
-%      through EA/L stiffness + damping. Tension is what actually applies
-%      force, not the commanded length directly.
-%      >>> faculty check: verify the compliance bandwidth parameter
-%      (P.cable_compliance_bandwidth) makes sense for Dyneema at these lengths.
 %
 % BEFORE RUNNING DO THE FOLLOWING:
 %       1. re order function definitions to avoid any call errors
 %       2. put in placeholder values and run smoke test
-%
-% Schedule / deadlines
-%   Test 1: Step response  → overshoot, settling time, steady-state error
-%   Test 2: Disturbance rejection → robustness metric
-%   Conditions: Earth nominal | Earth perturbed | Lunar (1/6 g)
-%   Controllers: IT2-FLS | PID, were comparing them for now
-%
-% REQUIRED TOOLBOXES:
-%   - Optimization Toolbox  (quadprog, lsqnonlin)
-%   - Fuzzy Logic Toolbox   (R2019b+ for Type-2 support)
 %
 % FOLDER STRUCTURE FOR WHEN THIS IS LESS MESSY:
 %   addpath('config')       % robot_params.m, controller_params.m
@@ -44,8 +26,7 @@
 % and lets me mess with gravity nicely
 %   Key property: sag scales with (w*L^2)/(8*T) where w = cable weight
 %   per unit length. Changing gravity just changes w → sag worsens at
-%   low g (lower tensions needed to balance reduced weight), which is
-%   exactly the accuracy story your abstract builds.
+%   low g (lower tensions needed to balance reduced weight)
 
 clear; clc; close all;
 
@@ -80,10 +61,9 @@ P.cable_mass_per_m = P.cable_density * (pi*(P.cable_diameter/2)^2) * 1e6;
 P.cable_stiffness = 50000;  % N/m  (EA/L, approximate for 1mm Dyneema)
 P.cable_damping   = 5.0;    % N·s/m
 
-% ACTION ITEM 1 — Cable compliance bandwidth [Hz]
-% This sets how fast the cable spring-damper responds.
-% Dyneema has very low stretch (~1.5% at break), so bandwidth can be high.
-% 20 Hz means the compliance lag is noticeable at control frequencies near 20 Hz.
+%we need to check what this number should be, it depends on cable material. we need 
+%to know how fast the cable feels the new tension set by the motors
+% this 20 hz number is a guess
 P.cable_compliance_bandwidth = 20.0;   % Hz
 
 % Tension limits
@@ -96,33 +76,28 @@ P.t_total = 5.0;            % s   per test run
 P.t_vec   = 0:P.dt:P.t_total;
 P.N       = length(P.t_vec);
 
-% Disturbance injection
+% Throwing in some disturbance to test how models recover
 P.disturbance_time      = 2.5;   % s  (midway through trajectory)
 P.disturbance_magnitude = 1.5;   % N  (external force impulse)
 P.disturbance_duration  = 0.3;   % s
 
-% Uncertainty model (perturbed condition)
-P.mass_uncertainty      = 0.15;   % ±15% on EE mass
-P.stiffness_uncertainty = 0.20;   % ±20% on cable stiffness
 
-% ACTION ITEM 2 — Trajectory velocity / acceleration limits
-% Cap max EE speed and accel for trapezoidal profile.
-% >>> PROFESSOR CHECK: confirm before hardware runs.
+% setting max acceleration and velocity for the cables, this needs to be
+% verified before we actually run it, ARMA check would be sick
 P.vel_max   = 0.20;   % m/s   — comfortable for 1m workspace at 100Hz
 P.accel_max = 0.40;   % m/s²  — ~0.08g, conservative for preload stability
 
+%this is just confirmation that the file is running dw
 fprintf('=== CDPR Simulation Framework Initialized ===\n');
 fprintf('Control rate: %.0f Hz | Duration: %.1f s | Steps: %d\n\n', ...
         1/P.dt, P.t_total, P.N);
 
 
-% ACTION ITEM 2 — Trapezoidal velocity profile generator
-% Replaces hard step references throughout the simulation.
-% Generates a smooth move from pos_start to pos_end over t_vec,
-% respecting vel_max and accel_max.
-
-function [pos_traj, vel_traj] = make_trap_traj(pos_start, pos_end, t_vec, ...
-                                                vel_max, accel_max)
+%this makes the smooth motion curve through a trapezoid. it accelerates to accel_max, moves at 
+%vel_max, then decelerates once were close.
+% in this, pos_traj is where EE needs to be at each iteration, vel_traj is the 
+%velocity per iteration
+function [pos_traj, vel_traj] = make_trap_traj(pos_start, pos_end, t_vec, vel_max, accel_max)
     % make_trap_traj  Generate a trapezoidal velocity profile in 2D.
     %
     % Inputs:
@@ -140,7 +115,7 @@ function [pos_traj, vel_traj] = make_trap_traj(pos_start, pos_end, t_vec, ...
     d    = norm(pos_end - pos_start);
     dir  = (pos_end - pos_start) / max(d, 1e-9);  % unit direction
 
-    % Clamp vel_max so accel ramp is achievable
+    % lowers vel_max so accel ramp is achievable
     v_peak = min(vel_max, sqrt(accel_max * d));
 
     % Ramp times
@@ -215,10 +190,10 @@ function [L_arc, sag_mid, L_chord] = ik_with_sag(pos, anchors, T_est, ...
     L_chord = sqrt(sum((anchors - pos).^2, 2));   % straight-line IK
     w       = cable_mass_per_m * g;               % N/m, scales with g
 
-    % Avoid division by zero if tension is near 0
+    % Avoid division by zero if tension is near 0, makes some arbitrary limit
     T_safe = max(T_est, 0.1);
 
-    % Parabolic arc length correction: L_arc = L_chord * (1 + w²L²/24T²)
+    % Parabolic arc length correction: L_arc = L_chord * (1 + (w²L²)/(24T²))
     sag_factor = (w .* L_chord).^2 ./ (24 .* T_safe.^2);
     L_arc      = L_chord .* (1 + sag_factor);
     sag_mid    = w .* L_chord.^2 ./ (8 .* T_safe);
@@ -230,7 +205,7 @@ pos_demo = [0.5, 0.5];
 
 [L_arc_e, sag_e, L_chord] = ik_with_sag(pos_demo, P.anchors, T_demo, ...
                                           GRAVITY.earth, P.cable_mass_per_m);
-[L_arc_l, sag_l, ~]       = ik_with_sag(pos_demo, P.anchors, T_demo, ...
+% [L_arc_l, sag_l, ~]       = ik_with_sag(pos_demo, P.anchors, T_demo, ...
                                           GRAVITY.lunar, P.cable_mass_per_m);
 
 fprintf('=== Cable Sag at Center, 10N Tension ===\n');
@@ -410,10 +385,7 @@ function fis = build_it2_fls(sigma_uncertainty)
     %   sigma_uncertainty — fractional width of FOU (e.g. 0.15 = ±15% spread)
     %                       Larger = more uncertainty modeled = more robust
     %                       but slower response.
-    %
-    % Uses MATLAB's built-in mamfis with 'AndMethod','min' for IT2.
-    % Note: MATLAB R2019b+ supports Type-2 via fistype='sugeno' or 'mamdani'
-    % with IT2 MFs. We use Gaussian IT2 MFs (gaussmf with upper/lower sigma).
+
 
     fis = mamfis('Name', 'IT2_PositionController', ...
                  'AndMethod', 'min', ...
@@ -917,11 +889,13 @@ end
 
 %  SECTION 9: RUN ALL SIMULATION CONDITIONS
 %  3 conditions × 2 controllers × 2 tests = 12 runs
-
+% Uncertainty model (perturbed condition)
+P.mass_uncertainty      = 0.15;   % ±15% on EE mass
+P.stiffness_uncertainty = 0.20;   % ±20% on cable stiffness
 
 fprintf('\n=== Running Simulation Study ===\n');
 
-% ACTION ITEM 2 — Trapezoidal reference trajectory (replaces step reference)
+
 % Move from (0.3, 0.4) to (0.7, 0.6), hold at end
 [step_ref, step_vel] = make_trap_traj([0.3, 0.4], [0.7, 0.6], P.t_vec, ...
                                        P.vel_max, P.accel_max);
