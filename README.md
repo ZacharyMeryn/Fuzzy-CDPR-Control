@@ -12,7 +12,6 @@ CURRENT CODE ACTION ITEMS:
 OTHER THINGS TO WORK ON GENERALLY:
 1. Prep for next mentor meeting
 2. Thangalesu briefing (data base here https://sites.google.com/a/usc.edu/aste527/)
-3. more connections we can always use more POVs
 4. Let's draft sample questions for each person / type (People, Tech, Economics)
 5. Begin draft for Space Force Assosciation (email from ponce 3/25)
 6. Find conferences and other events to attend
