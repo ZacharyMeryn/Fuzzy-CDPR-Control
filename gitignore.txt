@@ -1,0 +1,22 @@
+
+code/v442_lib/
+code/v43_lib/
+v442_lib/
+v43_lib/
+
+# MATLAB
+*.asv
+*.m~
+*.mat
+slprj/
+codegen/
+
+
+code/v4_*.csv
+code/v4_*.tex
+code/fig*.png
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
