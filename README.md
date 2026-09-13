@@ -61,4 +61,4 @@ a matched integral term. The point of the design is that observed differences ar
 attributable to the control laws rather than to unequal tuning effort.
 ## License
 
-MIT — see `LICENSE`.
+Standard MIT License, see `LICENSE`.
